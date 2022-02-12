@@ -217,11 +217,47 @@ class NetworkDriver(object):
         """
         raise NotImplementedError
 
+    def load_partial_candidate(self, filename=None, config=None):
+        """
+        Populates a partial candidate configuration. You can populate it from a file or from a string.
+        If you send both a filename and a string containing the configuration, the file takes
+        precedence.
+
+        If you use this method the existing configuration will be updated with the partial
+        configuration once you commit the changes. This method will not change the configuration
+        by itself.
+
+        :param filename: Path to the file containing the desired configuration. By default is None.
+        :param config: String containing the desired configuration.
+        :raise ConfigException: If there is an error on the configuration sent.
+        """
+        raise NotImplementedError
+
     def compare_config(self):
         """
         :return: A string showing the difference between the running configuration and the \
         candidate configuration. The running_config is loaded automatically just before doing the \
         comparison so there is no need for you to do it.
+        """
+        raise NotImplementedError
+
+    def commit_partial_config(self, message="", check_mode=False):
+        """
+        Commits the changes requested by the method load_partial_candidate.
+
+        NAPALM drivers that support 'commit confirm' should cause self.has_pending_commit
+        to return True when a 'commit confirm' is in progress.
+
+        Implementations should raise an exception if commit_config is called multiple times while a
+        'commit confirm' is pending.
+
+        :param message: Optional - configuration session commit message
+        :type message: str
+        :type check_mode: boolean - True for check_mode run
+
+        Returns:
+        :type config_committed: boolean, True if not dry run
+        :type config_text: changes that were pushed
         """
         raise NotImplementedError
 

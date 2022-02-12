@@ -25,6 +25,7 @@ from collections import defaultdict
 from netaddr import IPNetwork
 from netaddr.core import AddrFormatError
 from netmiko import FileTransfer, InLineTransfer
+from netutils.config.compliance import diff_network_config
 
 import napalm.base.constants as C
 import napalm.base.helpers
@@ -322,6 +323,20 @@ class IOSDriver(NetworkDriver):
         if not return_status:
             raise MergeConfigException(msg)
 
+    #     def load_partial_candidate(self, filename=None, config=None):
+    #         """
+    #         SCP partial configuration to remote device.
+    #         """
+    #         self.config_replace = False
+    #         return_status, msg = self._load_partial_candidate_wrapper(
+    #             source_file=filename,
+    #             source_config=config,
+    #             dest_file=self.partial_cfg,
+    #             file_system=self.dest_file_system,
+    #         )
+    #         if not return_status:
+    #             raise MergeConfigException(msg)
+
     def _normalize_compare_config(self, diff):
         """Filter out strings that should not show up in the diff."""
         ignore_strings = [
@@ -392,6 +407,26 @@ class IOSDriver(NetworkDriver):
         else:
             new_diff.append("! No changes specified in merge file.")
         return "\n".join(new_diff)
+
+    def commit_partial_config(self, check_mode=False):
+        """
+        Default operation is to compare system:running-config to self.candidate_cfg
+        Use netutils diff_network_config to calculate the diff
+        Return:
+        change_pushed: boolean, True if the change was committed
+        diff between the two donfigs that can be
+        """
+        intended_config = self.candidate_cfg
+
+        show_cmd = "show running-config"
+        base_config = self.device.send_command_expect(show_cmd)
+
+        diff_config = diff_network_config(intended_config, base_config, "cisco_ios")
+        if check_mode:
+            return (False, diff_config)
+        else:
+            commit_config(diff_config)
+            return (True, diff_config)
 
     def compare_config(self):
         """
