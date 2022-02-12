@@ -422,11 +422,24 @@ class IOSDriver(NetworkDriver):
         base_config = self.device.send_command_expect(show_cmd)
 
         diff_config = diff_network_config(intended_config, base_config, "cisco_ios")
-        if check_mode:
-            return (False, diff_config)
-        else:
-            commit_config(diff_config)
-            return (True, diff_config)
+        if diff_config:
+            if check_mode:
+                return (False, diff_config)
+
+            output = self.device.send_command_expect(diff_config)
+            if "Invalid input detected" in output:
+                self.rollback()
+                err_header = "Configuration merge failed; automatic rollback attempted"
+                merge_error = "{0}:\n{1}".format(err_header, output)
+                raise MergeConfigException(merge_error)
+
+        # After a commit - we no longer know whether this is configured or not.
+        self.prompt_quiet_configured = None
+
+        # Save config to startup (both replace and merge)
+        output += self.device.save_config()
+
+        return (False, diff_config)
 
     def compare_config(self):
         """
